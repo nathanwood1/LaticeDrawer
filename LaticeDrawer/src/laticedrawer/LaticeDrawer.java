@@ -14,13 +14,15 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import javax.swing.JFrame;
 
 /**
  *
  * @author nathan
  */
-public class LaticeDrawer extends Canvas implements KeyListener, MouseListener, MouseWheelListener {
+public class LaticeDrawer extends Canvas implements Runnable, KeyListener, MouseListener, MouseWheelListener {
     public static int WIDTH = 800; //Width and height. Not final as resizing is supported
     public static int HEIGHT = 600;
     
@@ -28,6 +30,8 @@ public class LaticeDrawer extends Canvas implements KeyListener, MouseListener, 
         JFrame frame = new JFrame(); //Create and setup JFrame
         frame.setTitle("Latice Drawer");
         frame.setSize(WIDTH, HEIGHT);
+        frame.setLocationRelativeTo(null);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.addComponentListener(new ComponentListener() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -52,37 +56,55 @@ public class LaticeDrawer extends Canvas implements KeyListener, MouseListener, 
         });
         
         LaticeDrawer l = new LaticeDrawer();
+        l.addMouseListener(l);
+        l.addKeyListener(l);
+        l.addMouseWheelListener(l);
+        frame.addMouseListener(l);
+        frame.addKeyListener(l);
+        frame.addMouseWheelListener(l);
         
+        frame.setVisible(true);
+        l.run();
     }
 
     @Override
     public void keyTyped(KeyEvent e) {
         
     }
+    
+    LinkedList<Integer> keys;
 
     @Override
     public void keyPressed(KeyEvent e) {
-        
+        if (!keys.contains(e.getKeyCode()))
+            keys.add(e.getKeyCode());
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        
+        if (keys.contains(e.getKeyCode()))
+            keys.remove((Integer) e.getKeyCode());
     }
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        
     }
+    
+    boolean mouseDownInit = false;
+    boolean mouseDown = false;
+    int mouseCode = -1;
 
     @Override
     public void mousePressed(MouseEvent e) {
-        
+        mouseDownInit = true;
+        mouseDown = true;
+        mouseCode = e.getButton();
     }
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        
+        mouseDown = false;
+        mouseCode = e.getButton();
     }
 
     @Override
@@ -94,9 +116,20 @@ public class LaticeDrawer extends Canvas implements KeyListener, MouseListener, 
     public void mouseExited(MouseEvent e) {
         
     }
+    
+    int moveAmount = 0;
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
+        if (e.getUnitsToScroll() >= 0)
+            moveAmount++;
+        else
+            moveAmount--;
+    }
+
+    @Override
+    public void run() {
+        keys = new LinkedList<>();
         
     }
     
