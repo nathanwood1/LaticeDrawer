@@ -10,9 +10,10 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.MouseInfo;
 import java.awt.Point;
-import java.awt.Toolkit;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.KeyEvent;
@@ -32,7 +33,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.JColorChooser;
-import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -47,11 +47,12 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     public static int WIDTH = 800;
     public static int HEIGHT = 600;
     public static Font font;
+    public static JFrame frame;
     
     public static void main(String[] args) {
         System.setProperty("sun.java2d.opengl", "true");
         
-        JFrame frame = new JFrame();
+        frame = new JFrame();
         frame.setTitle("Latice Drawer");
         frame.setSize(WIDTH, HEIGHT);
         frame.setLocationRelativeTo(null);
@@ -185,6 +186,8 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         }
     }
     
+    boolean fullscreen = false;
+    
     public void render(double delta) {
         BufferStrategy bs = getBufferStrategy();
         if (bs == null) {
@@ -194,6 +197,39 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         
         final Graphics2D[] g = new Graphics2D[1];
         g[0] = (Graphics2D) bs.getDrawGraphics();
+        
+        if (key(KeyEvent.VK_ESCAPE) > 0) {
+            System.exit(0);
+        }
+        
+        if (key(KeyEvent.VK_F11) > 0) {
+            if (fullscreen) {
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                GraphicsDevice gd = ge.getScreenDevices()[0];
+                gd.setFullScreenWindow(null);
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ex) {
+                }
+                frame.setVisible(true);
+                frame.setExtendedState(JFrame.NORMAL);
+                frame.setSize(800, 600);
+                frame.setLocationRelativeTo(null);
+                WIDTH = 800;
+                HEIGHT = 600;
+                fullscreen = false;
+            } else {
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                GraphicsDevice gd = ge.getScreenDevices()[0];
+                if (gd.isFullScreenSupported()) {
+                    gd.setFullScreenWindow(frame);
+                }
+                fullscreen = true;
+            }
+            synchronized(keys) {
+                keys.put(KeyEvent.VK_F11, Double.NaN);
+            }
+        }
         
         BufferedImage img = null;
         if (key(KeyEvent.VK_CONTROL) >= 0 && key(KeyEvent.VK_S) >= 0) {
