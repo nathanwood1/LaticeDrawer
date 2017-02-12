@@ -20,11 +20,15 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import javax.swing.JColorChooser;
 import javax.swing.JFrame;
 import static javax.swing.SwingUtilities.convertPointFromScreen;
 
@@ -80,28 +84,42 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         frame.setVisible(true);
         l.run();
     }
+    
+    public LaticeDrawer() {
+        keys = new LinkedHashMap<>(); //Setup arrays
+        lines = new LinkedList[2];
+    }
 
     @Override
     public void keyTyped(KeyEvent e) {
         
     }
     
-    LinkedList<Integer> keys;
+    final LinkedHashMap<Integer, Double> keys;
 
     @Override
     public void keyPressed(KeyEvent e) {
-        if (!keys.contains(e.getKeyCode()))
-            keys.add(e.getKeyCode());
+        synchronized (keys) {
+            if (!keys.containsKey(e.getKeyCode()))
+                keys.put(e.getKeyCode(), 0.0);
+        }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        if (keys.contains(e.getKeyCode()))
-            keys.remove((Integer) e.getKeyCode());
+        synchronized (keys) {
+            if (keys.containsKey(e.getKeyCode()))
+                keys.remove(e.getKeyCode());
+        }
     }
     
-    public boolean isKeyDown(int code) {
-        return keys.contains(code);
+    public double key(int code) {
+        synchronized (keys) {
+            if (keys.containsKey(code))
+                return keys.get(code);
+            else
+                return Double.NaN;
+        }
     }
 
     @Override
@@ -147,8 +165,6 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
 
     @Override
     public void run() {
-        keys = new LinkedList<>(); //Setup arrays
-        lines = new LinkedList[2];
         for (int i = 0; i < lines.length; i++) {
             lines[i] = new LinkedList<>();
         }
@@ -176,12 +192,18 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         mouse = MouseInfo.getPointerInfo().getLocation();
         convertPointFromScreen(mouse, this);
         
-        if (isKeyDown(KeyEvent.VK_SHIFT)) {
+        if (key(KeyEvent.VK_SHIFT) >= 0) {
             mouse.x = (int) Math.round(mouse.x / 25d) * 25;
             mouse.y = (int) Math.round(mouse.y / 25d) * 25;
         }
         
-        g.setColor(Color.WHITE);
+        if (key(KeyEvent.VK_C) == 0) {
+            Color c = JColorChooser.showDialog(this, "Choose Colour", selectedColour);
+            if (c != null)
+                selectedColour = c;
+        }
+        
+        g.setColor(selectedColour);
         g.drawLine(mouse.x, mouse.y - 10, mouse.x, mouse.y + 10);
         g.drawLine(mouse.x - 10, mouse.y, mouse.x + 10, mouse.y);
         
@@ -210,6 +232,12 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                 l.render(g);
             });
         
+        synchronized (keys) {
+            keys.keySet().stream().forEach((key) -> {
+                keys.put(key, keys.get(key) + delta);
+            });
+        }
+        
         g.dispose();
         bs.show();
     }
@@ -217,17 +245,20 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     LinkedList<Line>[] lines;
     static Point mouse = null;
     static int type = 0;
+    static Color selectedColour = Color.WHITE;
     
     public static class Line {
         double detail = 10;
         boolean completed = false;
         int type;
+        Color selectedColour;
         
         LinkedList<Point> points;
         
         public Line(int type) {
             this.type = type;
             points = new LinkedList<>();
+            selectedColour = LaticeDrawer.selectedColour;
         }
         
         public void addPoint(Point p) {
@@ -242,7 +273,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                     moveAmount = 0;
                 }
                 
-                g.setColor(Color.WHITE);
+                g.setColor(selectedColour);
                 for (int i = 1; i < points.size(); i++)
                     g.drawLine(points.get(i - 1).x, points.get(i - 1).y, points.get(i).x, points.get(i).y);
                 
@@ -263,29 +294,41 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                 }
                 
                 if(!completed)
-                    points.remove(mouse);
+                    points.removeLast();
             } else if (type == 1) {
                 if(!completed) {
                     points.add(mouse);
                     detail += moveAmount;
+                    if (detail == 0 && moveAmount == -1)
+                        detail = -2;
+                    else if (detail == 0 && moveAmount == 1)
+                        detail = 2;
                     moveAmount = 0;
                 }
 
+                g.setColor(selectedColour);
+                for (int i = 0; i < points.size(); i++)
+                    g.drawLine(points.get(realMod(i - 1, points.size())).x, points.get(realMod(i - 1, points.size())).y, points.get(i).x, points.get(i).y);
+                
                 if (points.size() > 2) {
-                    g.setColor(Color.WHITE);
-                    Point[] p = points.toArray(new Point[points.size()]);
-                    for (int j = 0; j < 1000; j++) {
+                    Point[] p_s = points.toArray(new Point[points.size()]);
+                    Point2D.Double[] p = new Point2D.Double[p_s.length];
+                    for (int i = 0; i < p_s.length; i++)
+                        p[i] = new Point2D.Double(p_s[i].x, p_s[i].y);
+                    for (int j = 0; j < 100 * Math.abs(detail) * points.size(); j++) {
                         int i = realMod(j, (points.size() + 1));
-                        g.drawLine(
-                                p[realMod(i - 1, p.length)].x, p[realMod(i - 1, p.length)].y,
-                                p[realMod(i, p.length)].x, p[realMod(i, p.length)].y);
-                        if (i != j) {
-                            int a = realMod(i - 1, p.length);
-                            int b = realMod(i, p.length);
-                            double xD = (p[b].x - p[a].x) / detail;
-                            double yD = (p[b].y - p[a].y) / detail;
-                            p[a] = new Point(p[a].x + (int) xD, p[a].y + (int) yD);
-                        }
+                        if (detail >= 0)
+                            g.drawLine(
+                                (int) p[realMod(i - 1, p.length)].x, (int) p[realMod(i - 1, p.length)].y,
+                                (int) p[realMod(i, p.length)].x, (int) p[realMod(i, p.length)].y);
+                        int a = realMod(i - 1, p.length);
+                        int b = realMod(i, p.length);
+                        double xD = (p[b].x - p[a].x) / Math.abs(detail);
+                        double yD = (p[b].y - p[a].y) / Math.abs(detail);
+                        Point2D.Double p2 = p[a];
+                        p[a] = new Point2D.Double(p[a].x + xD, p[a].y + yD);
+                        if(detail < 0)
+                            g.drawLine((int) p[a].x, (int) p[a].y, (int) p2.x, (int) p2.y);
                     }
                 }
                 
