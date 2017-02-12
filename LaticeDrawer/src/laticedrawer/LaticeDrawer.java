@@ -38,11 +38,12 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     public static int WIDTH = 800;
     public static int HEIGHT = 600;
     public static Font font;
+    public static JFrame frame;
     
     public static void main(String[] args) {
         System.setProperty("sun.java2d.opengl", "true");
         
-        JFrame frame = new JFrame();
+        frame = new JFrame();
         frame.setTitle("Latice Drawer");
         frame.setSize(WIDTH, HEIGHT);
         frame.setLocationRelativeTo(null);
@@ -177,6 +178,8 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         }
     }
     
+    double buildup = 0;
+    
     public void render(double delta) {
         BufferStrategy bs = getBufferStrategy();
         if (bs == null) {
@@ -195,9 +198,17 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         g.setColor(Color.BLACK);
         g.fillRect(0, 0, WIDTH, HEIGHT);
         
+        mouse = MouseInfo.getPointerInfo().getLocation();
+        convertPointFromScreen(mouse, this);
+        
+        if (key(KeyEvent.VK_SHIFT) >= 0) {
+            mouse.x = (int) Math.round(mouse.x / 25d) * 25;
+            mouse.y = (int) Math.round(mouse.y / 25d) * 25;
+        }
+        
         g.setColor(Color.WHITE);
         g.setFont(font);
-        String str = "Mode: [" + (type + 1) + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
+        String str = "Mode: [" + (type + 1) + "], Cursor:[" + mouse.x + ", " + mouse.y + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
         g.drawString(str, 0, 12);
         g.setColor(selectedColour);
         int width = g.getFontMetrics().stringWidth(str);
@@ -208,18 +219,13 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         str = "], R:" + selectedColour.getRed() + ", G:" + selectedColour.getGreen() + ", B:" + selectedColour.getBlue() + ", A:" + selectedColour.getAlpha() + "]";
         g.drawString(str, width, 12);
         
-        mouse = MouseInfo.getPointerInfo().getLocation();
-        convertPointFromScreen(mouse, this);
-        
-        if (key(KeyEvent.VK_SHIFT) >= 0) {
-            mouse.x = (int) Math.round(mouse.x / 25d) * 25;
-            mouse.y = (int) Math.round(mouse.y / 25d) * 25;
-        }
-        
-        if (key(KeyEvent.VK_C) == 0) {
+        if (key(KeyEvent.VK_C) > 0) {
             Color c = JColorChooser.showDialog(this, "Choose Colour", selectedColour);
             if (c != null)
                 selectedColour = c;
+            synchronized (keys) {
+                keys.remove(KeyEvent.VK_C);
+            }
         }
         
         g.setColor(selectedColour);
@@ -251,11 +257,19 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                 l.render(g);
             });
         
+        if(buildup > 1)
+                frame.setTitle("");
         synchronized (keys) {
             keys.keySet().stream().forEach((key) -> {
                 keys.put(key, keys.get(key) + delta);
+        if(buildup > 1)
+                frame.setTitle(frame.getTitle() + "|" + key + ":" + keys.get(key));
             });
         }
+        
+        while(buildup > 1)
+            buildup -= 1;
+        buildup += delta;
         
         g.dispose();
         bs.show();
@@ -285,6 +299,8 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         }
         
         public void render(Graphics g) {
+            if(!completed)
+                selectedColour = LaticeDrawer.selectedColour;
             if (type == 0) {
                 if(!completed) {
                     points.add(mouse);
@@ -335,7 +351,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                     for (int i = 0; i < p_s.length; i++)
                         p[i] = new Point2D.Double(p_s[i].x, p_s[i].y);
                     for (int j = 0; j < 100 * Math.abs(detail) * points.size(); j++) {
-                        int i = realMod(j, (points.size() + 1));
+                        int i = realMod(j, (points.size())) + 1;
                         if (detail >= 0)
                             g.drawLine(
                                 (int) p[realMod(i - 1, p.length)].x, (int) p[realMod(i - 1, p.length)].y,
