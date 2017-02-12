@@ -22,6 +22,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import javax.swing.JFrame;
@@ -269,16 +270,40 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                     detail += moveAmount;
                     moveAmount = 0;
                 }
-                
-                Point[] points_arr = points.toArray(null);
-                for (int j = 0; j < 1000; j++) {
-                    
+
+                if (points.size() > 2) {
+                    g.setColor(Color.WHITE);
+                    Point[] p = points.toArray(new Point[points.size()]);
+                    for (int j = 0; j < 1000; j++) {
+                        int i = realMod(j, (points.size() + 1));
+                        g.drawLine(
+                                p[realMod(i - 1, p.length)].x, p[realMod(i - 1, p.length)].y,
+                                p[realMod(i, p.length)].x, p[realMod(i, p.length)].y);
+                        if (i != j) {
+                            int a = realMod(i - 1, p.length);
+                            int b = realMod(i, p.length);
+                            double xD = (p[b].x - p[a].x) / detail;
+                            double yD = (p[b].y - p[a].y) / detail;
+                            p[a] = new Point(p[a].x + (int) xD, p[a].y + (int) yD);
+                        }
+                    }
                 }
                 
                 if(!completed)
-                    points.remove(mouse);
+                    points.removeLast();
             }
         }
+    }
+    
+    public static int realMod(int val, int diviser) {
+//        System.out.print(val + " % " + diviser + " = ");
+        int r = val;
+        while (r >= diviser)
+            r -= diviser;
+        while (r < 0)
+            r += diviser;
+//        System.out.println(r);
+        return r;
     }
     
 }
