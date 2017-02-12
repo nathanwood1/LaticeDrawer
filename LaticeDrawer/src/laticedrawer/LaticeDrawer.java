@@ -223,7 +223,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         if (img == null) {
             g[0].setColor(Color.WHITE);
             g[0].setFont(font);
-            String str = "Mode: [" + (type + 1) + "], Cursor:[" + mouse.x + ", " + mouse.y + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
+            String str = "Mode: [" + (type + 1) + "], Cursor:[" + mouse.x + "/" + WIDTH + ", " + mouse.y + "/" + HEIGHT + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
             g[0].drawString(str, 0, 12);
             g[0].setColor(selectedColour);
             int width = g[0].getFontMetrics().stringWidth(str);
