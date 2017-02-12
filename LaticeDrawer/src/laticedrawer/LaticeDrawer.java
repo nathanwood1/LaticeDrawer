@@ -24,11 +24,20 @@ import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 import javax.swing.JColorChooser;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import static javax.swing.SwingUtilities.convertPointFromScreen;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
  *
@@ -187,16 +196,21 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
             return;
         }
         
-        Graphics2D g = (Graphics2D) bs.getDrawGraphics();
+        final Graphics2D[] g = new Graphics2D[1];
+        g[0] = (Graphics2D) bs.getDrawGraphics();
         
         BufferedImage img = null;
-        if (key(KeyEvent.VK_CONTROL) >= 0 && key(KeyEvent.VK_S) == 0) {
-//            img = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
-            
+        if (key(KeyEvent.VK_CONTROL) >= 0 && key(KeyEvent.VK_S) >= 0) {
+            img = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+            g[0] = img.createGraphics();
+            synchronized (keys) {
+                keys.remove(KeyEvent.VK_CONTROL);
+                keys.remove(KeyEvent.VK_S);
+            }
         }
         
-        g.setColor(Color.BLACK);
-        g.fillRect(0, 0, WIDTH, HEIGHT);
+        g[0].setColor(Color.BLACK);
+        g[0].fillRect(0, 0, WIDTH, HEIGHT);
         
         mouse = MouseInfo.getPointerInfo().getLocation();
         convertPointFromScreen(mouse, this);
@@ -206,18 +220,23 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
             mouse.y = (int) Math.round(mouse.y / 25d) * 25;
         }
         
-        g.setColor(Color.WHITE);
-        g.setFont(font);
-        String str = "Mode: [" + (type + 1) + "], Cursor:[" + mouse.x + ", " + mouse.y + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
-        g.drawString(str, 0, 12);
-        g.setColor(selectedColour);
-        int width = g.getFontMetrics().stringWidth(str);
-        str = "■";
-        g.drawString(str, width, 12);
-        width += g.getFontMetrics().stringWidth(str);
-        g.setColor(Color.WHITE);
-        str = "], R:" + selectedColour.getRed() + ", G:" + selectedColour.getGreen() + ", B:" + selectedColour.getBlue() + ", A:" + selectedColour.getAlpha() + "]";
-        g.drawString(str, width, 12);
+        if (img == null) {
+            g[0].setColor(Color.WHITE);
+            g[0].setFont(font);
+            String str = "Mode: [" + (type + 1) + "], Cursor:[" + mouse.x + ", " + mouse.y + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
+            g[0].drawString(str, 0, 12);
+            g[0].setColor(selectedColour);
+            int width = g[0].getFontMetrics().stringWidth(str);
+            str = "■";
+            g[0].drawString(str, width, 12);
+            width += g[0].getFontMetrics().stringWidth(str);
+            g[0].setColor(Color.WHITE);
+            str = "], R:" + selectedColour.getRed() + ", G:" + selectedColour.getGreen() + ", B:" + selectedColour.getBlue() + ", A:" + selectedColour.getAlpha() + "]";
+            g[0].drawString(str, width, 12);
+            g[0].setColor(selectedColour);
+            g[0].drawLine(mouse.x, mouse.y - 10, mouse.x, mouse.y + 10);
+            g[0].drawLine(mouse.x - 10, mouse.y, mouse.x + 10, mouse.y);
+        }
         
         if (key(KeyEvent.VK_C) > 0) {
             Color c = JColorChooser.showDialog(this, "Choose Colour", selectedColour);
@@ -227,10 +246,6 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                 keys.remove(KeyEvent.VK_C);
             }
         }
-        
-        g.setColor(selectedColour);
-        g.drawLine(mouse.x, mouse.y - 10, mouse.x, mouse.y + 10);
-        g.drawLine(mouse.x - 10, mouse.y, mouse.x + 10, mouse.y);
         
         if (mouseDownInit) {
             switch (mouseCode) {
@@ -254,7 +269,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         
         for (LinkedList<Line> list : lines)
             list.stream().forEach((l) -> {
-                l.render(g);
+                l.render(g[0]);
             });
         
         if(buildup > 1)
@@ -271,8 +286,33 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
             buildup -= 1;
         buildup += delta;
         
-        g.dispose();
-        bs.show();
+        g[0].dispose();
+        if (img == null)
+            bs.show();
+        else {
+            JFileChooser jfc = new JFileChooser();
+            jfc.setFileFilter(new FileNameExtensionFilter("Image File (*.png)", "png"));
+            if (jfc.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                String f_s = jfc.getSelectedFile().toString();
+                if (f_s.split("\\.").length == 1) {
+                    f_s += ".png";
+                } else {
+                    String[] strs = f_s.split("\\.");
+                    strs[strs.length - 1] = "png";
+                    f_s = String.join(".", strs);
+                }
+                File f = new File(f_s);
+                int response = JOptionPane.YES_OPTION;
+                if (f.exists())
+                    response = JOptionPane.showConfirmDialog(this, "The file \'" + f + "\' already exsists.\nDo you want to overwrite?", "Overwrite?", JOptionPane.YES_NO_OPTION);
+                if (response == JOptionPane.YES_OPTION)
+                    try {
+                        ImageIO.write(img, "png", f);
+                    } catch (IOException ex) {
+                        Logger.getLogger(LaticeDrawer.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+            }
+        }
     }
     
     LinkedList<Line>[] lines;
