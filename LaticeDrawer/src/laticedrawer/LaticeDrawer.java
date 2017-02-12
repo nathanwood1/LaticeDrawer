@@ -7,6 +7,7 @@ package laticedrawer;
 
 import java.awt.Canvas;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.MouseInfo;
@@ -23,11 +24,8 @@ import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.List;
 import javax.swing.JColorChooser;
 import javax.swing.JFrame;
 import static javax.swing.SwingUtilities.convertPointFromScreen;
@@ -37,22 +35,23 @@ import static javax.swing.SwingUtilities.convertPointFromScreen;
  * @author nathan
  */
 public class LaticeDrawer extends Canvas implements Runnable, KeyListener, MouseListener, MouseWheelListener {
-    public static int WIDTH = 800; //Width and height. Not final as resizing is supported
+    public static int WIDTH = 800;
     public static int HEIGHT = 600;
+    public static Font font;
     
     public static void main(String[] args) {
-        System.setProperty("sun.java2d.opengl", "true"); //In case you are on Linux
+        System.setProperty("sun.java2d.opengl", "true");
         
-        JFrame frame = new JFrame(); //Create and setup JFrame
+        JFrame frame = new JFrame();
         frame.setTitle("Latice Drawer");
         frame.setSize(WIDTH, HEIGHT);
         frame.setLocationRelativeTo(null);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setCursor(Toolkit.getDefaultToolkit().createCustomCursor( new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor")); //Set a blank curor
+        frame.getContentPane().setCursor(Toolkit.getDefaultToolkit().createCustomCursor( new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor"));
         frame.addComponentListener(new ComponentListener() {
             @Override
             public void componentResized(ComponentEvent e) {
-                WIDTH = frame.getWidth(); //In case the user resizes the window
+                WIDTH = frame.getWidth();
                 HEIGHT = frame.getHeight();
             }
 
@@ -72,7 +71,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
             }
         });
         
-        LaticeDrawer l = new LaticeDrawer(); //Setup listeners
+        LaticeDrawer l = new LaticeDrawer();
         l.addMouseListener(l);
         l.addKeyListener(l);
         l.addMouseWheelListener(l);
@@ -81,12 +80,13 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         frame.addMouseWheelListener(l);
         frame.add(l);
         
+        font = l.getFont().deriveFont(12f);
         frame.setVisible(true);
         l.run();
     }
     
     public LaticeDrawer() {
-        keys = new LinkedHashMap<>(); //Setup arrays
+        keys = new LinkedHashMap<>();
         lines = new LinkedList[2];
     }
 
@@ -168,26 +168,45 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         for (int i = 0; i < lines.length; i++) {
             lines[i] = new LinkedList<>();
         }
-        long prevNano = System.nanoTime(); //Timing
+        long prevNano = System.nanoTime();
         while (true) {
             long now = System.nanoTime();
             double delta = (double) (now - prevNano) / 1000000000;
             prevNano = now;
-            render(delta); //Render
+            render(delta);
         }
     }
     
     public void render(double delta) {
-        BufferStrategy bs = getBufferStrategy(); //Get the BufferStrategy
+        BufferStrategy bs = getBufferStrategy();
         if (bs == null) {
-            createBufferStrategy(3); //Create it if it doesn't exsist
+            createBufferStrategy(3);
             return;
         }
         
         Graphics2D g = (Graphics2D) bs.getDrawGraphics();
         
-        g.setColor(Color.BLACK); //Fill background with black
+        BufferedImage img = null;
+        if (key(KeyEvent.VK_CONTROL) >= 0 && key(KeyEvent.VK_S) == 0) {
+//            img = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+            
+        }
+        
+        g.setColor(Color.BLACK);
         g.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        g.setColor(Color.WHITE);
+        g.setFont(font);
+        String str = "Mode: [" + (type + 1) + "], Snapping:[" + (key(KeyEvent.VK_SHIFT) >= 0 ? "ON" : "OFF") + "], Detail: [" + (lines[type].isEmpty() ? 10 : (int) Math.abs(lines[type].getLast().detail)) + "], Color: [[";
+        g.drawString(str, 0, 12);
+        g.setColor(selectedColour);
+        int width = g.getFontMetrics().stringWidth(str);
+        str = "■";
+        g.drawString(str, width, 12);
+        width += g.getFontMetrics().stringWidth(str);
+        g.setColor(Color.WHITE);
+        str = "], R:" + selectedColour.getRed() + ", G:" + selectedColour.getGreen() + ", B:" + selectedColour.getBlue() + ", A:" + selectedColour.getAlpha() + "]";
+        g.drawString(str, width, 12);
         
         mouse = MouseInfo.getPointerInfo().getLocation();
         convertPointFromScreen(mouse, this);
@@ -219,7 +238,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                     break;
                 case MouseEvent.BUTTON3:
                     type = (type + 1) % lines.length;
-                case MouseEvent.BUTTON2: //No break because chaning state should also finish any curves
+                case MouseEvent.BUTTON2:
                     if (!lines[type].isEmpty())
                         lines[type].getLast().completed = true;
                     break;
@@ -269,7 +288,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
             if (type == 0) {
                 if(!completed) {
                     points.add(mouse);
-                    detail += moveAmount;
+                    detail = Math.max(0, moveAmount + detail);
                     moveAmount = 0;
                 }
                 
@@ -339,13 +358,11 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     }
     
     public static int realMod(int val, int diviser) {
-//        System.out.print(val + " % " + diviser + " = ");
         int r = val;
         while (r >= diviser)
             r -= diviser;
         while (r < 0)
             r += diviser;
-//        System.out.println(r);
         return r;
     }
     
