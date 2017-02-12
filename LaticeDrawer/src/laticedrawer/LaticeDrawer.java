@@ -47,17 +47,15 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     public static int WIDTH = 800;
     public static int HEIGHT = 600;
     public static Font font;
-    public static JFrame frame;
     
     public static void main(String[] args) {
         System.setProperty("sun.java2d.opengl", "true");
         
-        frame = new JFrame();
+        JFrame frame = new JFrame();
         frame.setTitle("Latice Drawer");
         frame.setSize(WIDTH, HEIGHT);
         frame.setLocationRelativeTo(null);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setCursor(Toolkit.getDefaultToolkit().createCustomCursor( new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor"));
         frame.addComponentListener(new ComponentListener() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -187,8 +185,6 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         }
     }
     
-    double buildup = 0;
-    
     public void render(double delta) {
         BufferStrategy bs = getBufferStrategy();
         if (bs == null) {
@@ -238,12 +234,13 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
             g[0].drawLine(mouse.x - 10, mouse.y, mouse.x + 10, mouse.y);
         }
         
-        if (key(KeyEvent.VK_C) > 0) {
+        if (key(KeyEvent.VK_CONTROL) > 0 && key(KeyEvent.VK_C) > 0) {
             Color c = JColorChooser.showDialog(this, "Choose Colour", selectedColour);
             if (c != null)
                 selectedColour = c;
             synchronized (keys) {
                 keys.remove(KeyEvent.VK_C);
+                keys.remove(KeyEvent.VK_CONTROL);
             }
         }
         
@@ -272,19 +269,11 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                 l.render(g[0]);
             });
         
-        if(buildup > 1)
-                frame.setTitle("");
         synchronized (keys) {
             keys.keySet().stream().forEach((key) -> {
                 keys.put(key, keys.get(key) + delta);
-        if(buildup > 1)
-                frame.setTitle(frame.getTitle() + "|" + key + ":" + keys.get(key));
             });
         }
-        
-        while(buildup > 1)
-            buildup -= 1;
-        buildup += delta;
         
         g[0].dispose();
         if (img == null)
