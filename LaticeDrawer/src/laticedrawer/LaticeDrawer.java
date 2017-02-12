@@ -98,6 +98,10 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         if (keys.contains(e.getKeyCode()))
             keys.remove((Integer) e.getKeyCode());
     }
+    
+    public boolean isKeyDown(int code) {
+        return keys.contains(code);
+    }
 
     @Override
     public void mouseClicked(MouseEvent e) {
@@ -130,7 +134,7 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         
     }
     
-    int moveAmount = 0;
+    static int moveAmount = 0;
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
@@ -170,6 +174,12 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         
         mouse = MouseInfo.getPointerInfo().getLocation();
         convertPointFromScreen(mouse, this);
+        
+        if (isKeyDown(KeyEvent.VK_SHIFT)) {
+            mouse.x = (int) Math.round(mouse.x / 25d) * 25;
+            mouse.y = (int) Math.round(mouse.y / 25d) * 25;
+        }
+        
         g.setColor(Color.WHITE);
         g.drawLine(mouse.x, mouse.y - 10, mouse.x, mouse.y + 10);
         g.drawLine(mouse.x - 10, mouse.y, mouse.x + 10, mouse.y);
@@ -184,7 +194,9 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                             lines[type].add(new Line(type));
                     lines[type].getLast().addPoint(mouse);
                     break;
-                case MouseEvent.BUTTON2:
+                case MouseEvent.BUTTON3:
+                    type = (type + 1) % lines.length;
+                case MouseEvent.BUTTON2: //No break because chaning state should also finish any curves
                     if (!lines[type].isEmpty())
                         lines[type].getLast().completed = true;
                     break;
@@ -206,11 +218,11 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     static int type = 0;
     
     public static class Line {
-        int detail = 10;
+        double detail = 10;
         boolean completed = false;
         int type;
         
-        List<Point> points;
+        LinkedList<Point> points;
         
         public Line(int type) {
             this.type = type;
@@ -223,8 +235,11 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
         
         public void render(Graphics g) {
             if (type == 0) {
-                if(!completed)
+                if(!completed) {
                     points.add(mouse);
+                    detail += moveAmount;
+                    moveAmount = 0;
+                }
                 
                 g.setColor(Color.WHITE);
                 for (int i = 1; i < points.size(); i++)
@@ -234,6 +249,30 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
                     Point a = points.get(i - 2);
                     Point b = points.get(i - 1);
                     Point c = points.get(i);
+                    double aXDiff = b.x - a.x;
+                    double aYDiff = b.y - a.y;
+                    double bXDiff = c.x - b.x;
+                    double bYDiff = c.y - b.y;
+                    aXDiff /= detail;
+                    aYDiff /= detail;
+                    bXDiff /= detail;
+                    bYDiff /= detail;
+                    for (int j = 0; j < detail; j++)
+                        g.drawLine(a.x + (int) (aXDiff * j), a.y + (int) (aYDiff * j), b.x + (int) (bXDiff * j), b.y + (int) (bYDiff * j));
+                }
+                
+                if(!completed)
+                    points.remove(mouse);
+            } else if (type == 1) {
+                if(!completed) {
+                    points.add(mouse);
+                    detail += moveAmount;
+                    moveAmount = 0;
+                }
+                
+                Point[] points_arr = points.toArray(null);
+                for (int j = 0; j < 1000; j++) {
+                    
                 }
                 
                 if(!completed)
