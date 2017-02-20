@@ -20,3 +20,5 @@ Based loosely on mathematics
 ![image](https://github.com/thatnat/LaticeDrawer/blob/master/coolimg.png)
 ![image](https://github.com/thatnat/LaticeDrawer/blob/master/fullscreen.png)
 ![image](https://github.com/thatnat/LaticeDrawer/blob/master/hiadaf.png)
+## If using sources
+Please also download [SJCC](https://github.com/thatnat/SJCC)
