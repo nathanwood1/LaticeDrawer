@@ -50,7 +50,8 @@ public class LaticeDrawer extends Canvas implements Runnable, KeyListener, Mouse
     public static JFrame frame;
     
     public static void main(String[] args) {
-        System.setProperty("sun.java2d.opengl", "true");
+        if (System.getProperty("os.name").equals("Linux"))
+            System.setProperty("sun.java2d.opengl", "true");
         
         frame = new JFrame();
         frame.setTitle("Latice Drawer");
